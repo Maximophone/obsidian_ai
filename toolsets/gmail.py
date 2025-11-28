@@ -1,9 +1,40 @@
 from ai_core.tools import tool
-from integrations.gmail_client import GmailClient, filter_email_data, process_gmail_message
 import json
+import os
 
-# Initialize client
-gmail_client = GmailClient()
+# Lazy initialization - client is created only when needed
+_gmail_client = None
+_gmail_error = None
+
+def get_gmail_client():
+    """Get or create the Gmail client. Returns (client, error_message)."""
+    global _gmail_client, _gmail_error
+    
+    if _gmail_client is not None:
+        return _gmail_client, None
+    
+    if _gmail_error is not None:
+        return None, _gmail_error
+    
+    # Check if credentials exist
+    if not os.path.exists('credentials.json') and not os.path.exists('token.pickle'):
+        _gmail_error = (
+            "Gmail integration not configured. To use Gmail tools:\n"
+            "1. Go to https://console.cloud.google.com/\n"
+            "2. Create a project and enable the Gmail API\n"
+            "3. Create OAuth 2.0 credentials and download as 'credentials.json'\n"
+            "4. Place credentials.json in the obsidian_ai directory"
+        )
+        return None, _gmail_error
+    
+    try:
+        from integrations.gmail_client import GmailClient
+        _gmail_client = GmailClient()
+        return _gmail_client, None
+    except Exception as e:
+        _gmail_error = f"Failed to initialize Gmail client: {str(e)}"
+        return None, _gmail_error
+
 
 @tool(
     description="Send an email through Gmail. This tool allows sending plain text emails to specified recipients. "
@@ -27,11 +58,15 @@ def send_email(
     from_email: str = None
 ) -> str:
     """Sends an email through Gmail"""
+    client, error = get_gmail_client()
+    if error:
+        return json.dumps({"error": error})
+    
     # Split recipients by comma and strip whitespace
     to_list = [email.strip() for email in to.split(',') if email.strip()]
     cc_list = [email.strip() for email in cc.split(',')] if cc else None
     
-    result = gmail_client.send_email(
+    result = client.send_email(
         to=to_list,
         subject=subject,
         body=body,
@@ -65,7 +100,12 @@ def search_emails(
     max_results: int = 10
 ) -> str:
     """Searches for emails using various filters"""
-    results = gmail_client.search_emails(
+    client, error = get_gmail_client()
+    if error:
+        return json.dumps({"error": error})
+    
+    from integrations.gmail_client import filter_email_data, process_gmail_message
+    results = client.search_emails(
         sender=sender,
         subject=subject,
         is_unread=is_unread,
@@ -86,7 +126,12 @@ def search_emails(
 )
 def get_email_content(message_id: str, simplified: bool = True) -> str:
     """Gets the full content of a specific email"""
-    message = gmail_client.get_email(message_id)
+    client, error = get_gmail_client()
+    if error:
+        return json.dumps({"error": error})
+    
+    from integrations.gmail_client import filter_email_data, process_gmail_message
+    message = client.get_email(message_id)
     if simplified:
         message = process_gmail_message(message)
         message = filter_email_data(message)
@@ -107,9 +152,13 @@ def list_recent_emails(
     max_results: int = 10,
 ) -> str:
     """Lists recent emails with optional filtering"""
+    client, error = get_gmail_client()
+    if error:
+        return json.dumps({"error": error})
+    
     if label_ids:
         label_ids = json.loads(label_ids)
-    messages = gmail_client.list_emails(
+    messages = client.list_emails(
         query=query,
         label_ids=label_ids,
         max_results=max_results
@@ -122,4 +171,4 @@ TOOLS = [
     search_emails,
     get_email_content,
     list_recent_emails
-] 
+]
