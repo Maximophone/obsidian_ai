@@ -31,24 +31,49 @@ The main themes are...
 
 ### Requirements
 - Python 3.10+
-- [ai_engine](https://github.com/your-org/ai_engine) (sibling repo with `ai_core` package)
+- [ai_engine](https://github.com/Maximophone/ai_engine) — the `ai_core` package that provides the AI model interface
 
 ### Setup
 
+**1. Clone both repositories side by side:**
+
+```bash
+# Create a parent directory for both repos
+mkdir ~/code && cd ~/code
+
+# Clone ai_engine first (required dependency)
+git clone https://github.com/Maximophone/ai_engine.git
+
+# Clone obsidian_ai next to it
+git clone https://github.com/Maximophone/obsidian_ai.git
+
+# Your folder structure should look like:
+# ~/code/
+#   ├── ai_engine/
+#   └── obsidian_ai/
+```
+
+**2. Run the setup script:**
+
 **macOS/Linux:**
 ```bash
+cd obsidian_ai
 ./setup_env.sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
+cd obsidian_ai
 .\setup_env.ps1
 ```
 
 **Windows (CMD):**
 ```cmd
+cd obsidian_ai
 setup_env.bat
 ```
+
+The setup script will automatically install `ai_core` from the sibling `ai_engine` directory.
 
 ### Configuration
 
