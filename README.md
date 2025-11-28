@@ -210,10 +210,21 @@ Type `<help!>` in any note and save to see the full tag reference.
 
 ## Running
 
-Activate your virtual environment, then:
+Simply use the run script (it handles the virtual environment for you):
 
+**macOS/Linux:**
 ```bash
-python obsidian_ai.py
+./run.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\run.ps1
+```
+
+**Windows (CMD):**
+```cmd
+run.bat
 ```
 
 The watcher monitors your vault for file changes. When you save a file containing `<ai!>` blocks with `<reply!>` tags, it processes them automatically.
@@ -221,8 +232,8 @@ The watcher monitors your vault for file changes. When you save a file containin
 ### Command Line Options
 
 ```bash
-python obsidian_ai.py --log-level DEBUG  # Verbose logging
-python obsidian_ai.py --log-level ERROR  # Quiet mode
+./run.sh --log-level DEBUG  # Verbose logging
+./run.sh --log-level ERROR  # Quiet mode
 ```
 
 ## Project Structure
