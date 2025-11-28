@@ -1,0 +1,42 @@
+# Environment and secrets
+.env
+.env.*
+secrets.yml
+
+# Credentials and tokens
+credentials.json
+token.pickle
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Data and output files
+data/
+token_count.csv
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Other
+repomix-output.xml

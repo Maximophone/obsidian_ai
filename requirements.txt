@@ -1,0 +1,49 @@
+# Obsidian AI Requirements
+# ========================
+#
+# This project requires a local package from a sibling repository:
+#   pip install -e ../ai_engine    # ai_core package
+#
+# Optional (for Notion integration):
+#   pip install -e ../notion_md_converter    # notion_markdown_converter package
+#
+# Minimum Python version: 3.10
+# Recommended: Python 3.11+
+
+# Environment
+python-dotenv>=1.0.0
+
+# File watching
+watchdog>=4.0.0
+
+# GUI - PyQt5 (for tool confirmation dialogs)
+PyQt5>=5.15.0
+
+# HTTP requests
+requests>=2.31.0
+
+# HTML parsing and conversion
+beautifulsoup4>=4.12.0
+markdownify>=0.11.0
+lxml>=5.0.0
+
+# PDF processing
+PyMuPDF>=1.23.0
+
+# Google APIs (Gmail, Google Drive)
+google-api-python-client>=2.100.0
+google-auth>=2.20.0
+google-auth-oauthlib>=1.0.0
+google-auth-httplib2>=0.2.0
+
+# Discord integration
+discord.py>=2.0.0
+
+# Data validation
+pydantic>=2.0.0
+
+# YAML config
+PyYAML>=6.0
+
+# Patching (used in some utilities)
+patch-ng>=1.17.0

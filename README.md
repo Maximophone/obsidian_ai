@@ -1,0 +1,232 @@
+# Obsidian AI
+
+A file watcher that adds AI capabilities directly into your Obsidian notes. Write questions or instructions using simple tags, save the file, and get AI responses inline.
+
+## How It Works
+
+1. Start the watcher: `python obsidian_ai.py`
+2. In any Obsidian note, add an AI block with a `<reply!>` tag
+3. Save the file
+4. The AI responds directly in your note
+
+```markdown
+<ai!>
+What are the main themes in this note?
+<reply!>
+</ai!>
+```
+
+After saving, the AI's response appears where `<reply!>` was:
+
+```markdown
+<ai!>
+What are the main themes in this note?
+|AI|
+The main themes are...
+|ME|
+</ai!>
+```
+
+## Installation
+
+### Requirements
+- Python 3.10+
+- [ai_engine](https://github.com/your-org/ai_engine) (sibling repo with `ai_core` package)
+
+### Setup
+
+**macOS/Linux:**
+```bash
+./setup_env.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\setup_env.ps1
+```
+
+**Windows (CMD):**
+```cmd
+setup_env.bat
+```
+
+### Configuration
+
+Create a `.env` file with your API keys:
+
+```env
+CLAUDE_API_KEY=your-claude-key
+OPENAI_API_KEY=your-openai-key
+GEMINI_API_KEY=your-gemini-key
+DISCORD_BOT_TOKEN=your-discord-token  # optional
+```
+
+Set your vault path (or let it auto-detect):
+```env
+OBSIDIAN_VAULT_PATH=/path/to/your/vault
+```
+
+## Usage
+
+### Basic AI Queries
+
+```markdown
+<ai!>
+Explain quantum computing in simple terms.
+<reply!>
+</ai!>
+```
+
+### Choosing a Model
+
+```markdown
+<ai!>
+<model!opus>
+Write a detailed analysis of this research paper.
+<reply!>
+</ai!>
+```
+
+Available models depend on your `ai_core` configuration (e.g., `haiku`, `sonnet`, `opus`, `gpt4`, `gemini`).
+
+### Including Context
+
+**Current document:**
+```markdown
+<ai!>
+<this!>
+Summarize the key points above.
+<reply!>
+</ai!>
+```
+
+**Another note:**
+```markdown
+<ai!>
+<doc![[Meeting Notes 2024-01-15]]>
+What action items came from this meeting?
+<reply!>
+</ai!>
+```
+
+**A URL:**
+```markdown
+<ai!>
+<url!https://example.com/article>
+Summarize this article.
+<reply!>
+</ai!>
+```
+
+**A PDF:**
+```markdown
+<ai!>
+<pdf!Documents/paper.pdf>
+What methodology does this paper use?
+<reply!>
+</ai!>
+```
+
+**An image:**
+```markdown
+<ai!>
+<model!sonnet>
+<image!Screenshots/chart.png>
+Describe what this chart shows.
+<reply!>
+</ai!>
+```
+
+### Using System Prompts
+
+Create prompt files in your vault's `Prompts/` folder, then reference them:
+
+```markdown
+<ai!>
+<system!code_reviewer>
+Review this function for bugs and improvements.
+<reply!>
+</ai!>
+```
+
+### Using Tools
+
+Enable AI tools to interact with external services:
+
+```markdown
+<ai!>
+<tools!gmail>
+Find my most recent email from John and summarize it.
+<reply!>
+</ai!>
+```
+
+**Available toolsets:**
+- `system` - File operations, shell commands, Python execution
+- `obsidian` - Read notes and vault structure
+- `gmail` - Read and send emails
+- `discord` - Send Discord messages
+- `subagents` - Create specialized sub-agents
+
+### Parameters
+
+| Tag | Description | Example |
+|-----|-------------|---------|
+| `<model!name>` | Choose AI model | `<model!opus>` |
+| `<temperature!n>` | Response randomness (0-1) | `<temperature!0.7>` |
+| `<max_tokens!n>` | Max response length | `<max_tokens!4000>` |
+| `<system!name>` | Use system prompt from Prompts/ | `<system!analyst>` |
+| `<think!>` | Enable extended thinking | `<think!>` |
+| `<debug!>` | Show debug information | `<debug!>` |
+
+### Getting Help
+
+Type `<help!>` in any note and save to see the full tag reference.
+
+## Running
+
+Activate your virtual environment, then:
+
+```bash
+python obsidian_ai.py
+```
+
+The watcher monitors your vault for file changes. When you save a file containing `<ai!>` blocks with `<reply!>` tags, it processes them automatically.
+
+### Command Line Options
+
+```bash
+python obsidian_ai.py --log-level DEBUG  # Verbose logging
+python obsidian_ai.py --log-level ERROR  # Quiet mode
+```
+
+## Project Structure
+
+```
+obsidian_ai/
+├── obsidian_ai.py          # Entry point
+├── obsidian/               # Core functionality
+│   ├── obsidian_ai.py      # File processing
+│   ├── process_ai_block.py # AI tag handling
+│   ├── parser/             # Tag parser
+│   └── ...
+├── integrations/           # External services
+│   ├── discord/            # Discord bot
+│   ├── gmail_client.py     # Gmail API
+│   ├── gdoc_utils.py       # Google Docs
+│   └── notion_integration.py
+├── toolsets/               # AI-callable tools
+│   ├── system.py           # File/command tools
+│   ├── obsidian.py         # Vault tools
+│   ├── gmail.py            # Email tools
+│   └── discord.py          # Discord tools
+├── services/               # Background services
+│   └── file_watcher.py     # File monitoring
+├── config/                 # Configuration
+└── ui/                     # UI components
+    └── tool_confirmation.py
+```
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
