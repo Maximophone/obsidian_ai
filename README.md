@@ -77,19 +77,36 @@ The setup script will automatically install `ai_core` from the sibling `ai_engin
 
 ### Configuration
 
-Create a `.env` file with your API keys:
+**1. Copy the example configuration file:**
+
+```bash
+cp env.example .env
+```
+
+**2. Edit `.env` with your settings:**
 
 ```env
+# REQUIRED: Path to your Obsidian vault
+OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
+
+# REQUIRED: At least one AI API key
 CLAUDE_API_KEY=your-claude-key
+# or
 OPENAI_API_KEY=your-openai-key
+# or
 GEMINI_API_KEY=your-gemini-key
-DISCORD_BOT_TOKEN=your-discord-token  # optional
+
+# OPTIONAL: For integrations
+DISCORD_BOT_TOKEN=your-discord-token
+GDRIVE_API_KEY=your-gdrive-key
 ```
 
-Set your vault path (or let it auto-detect):
-```env
-OBSIDIAN_VAULT_PATH=/path/to/your/vault
-```
+**Vault path examples:**
+- macOS: `/Users/yourname/Documents/MyVault`
+- Windows: `C:/Users/yourname/Documents/MyVault`
+- Linux: `/home/yourname/Documents/MyVault`
+
+> **Note:** If you don't set `OBSIDIAN_VAULT_PATH`, it will try to auto-detect a vault in Google Drive (`My Drive/Obsidian`).
 
 ## Usage
 
