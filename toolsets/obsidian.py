@@ -426,6 +426,347 @@ def get_note_links(filepath: str) -> str:
     return '\n'.join(result)
 
 
+@tool(
+    description="""Check which files from a list exist in the vault. Efficient for batch existence checking.
+    Much faster than making multiple individual calls.""",
+    filepaths="Comma-separated list of filepaths to check (e.g., 'note1.md, folder/note2.md')",
+    safe=True
+)
+def check_files_exist(filepaths: str) -> str:
+    """Batch check file existence."""
+    paths = [p.strip() for p in filepaths.split(',') if p.strip()]
+    
+    exists = []
+    missing = []
+    
+    for filepath in paths:
+        try:
+            fp = ensure_md_extension(filepath)
+            full_path = PATHS.vault_path / fp
+            if full_path.exists():
+                exists.append(filepath)
+            else:
+                missing.append(filepath)
+        except:
+            missing.append(filepath)
+    
+    result = [f"Checked {len(paths)} files:"]
+    result.append(f"  ✓ {len(exists)} exist")
+    result.append(f"  ✗ {len(missing)} missing")
+    result.append("")
+    
+    if exists:
+        result.append("Existing:")
+        for f in exists:
+            result.append(f"  ✓ {f}")
+    
+    if missing:
+        result.append("Missing:")
+        for f in missing:
+            result.append(f"  ✗ {f}")
+    
+    return '\n'.join(result)
+
+
+@tool(
+    description="""Find files by partial name match or glob pattern. Use for fuzzy filename searching.
+    Examples: '2025-11-12' finds all files with that date, '*meeting*' finds meeting notes.""",
+    pattern="Partial filename or glob pattern to match (case-insensitive)",
+    directory="Limit search to this directory. Empty = search entire vault.",
+    max_results="Maximum files to return. Default: 50",
+    safe=True
+)
+def find_files(pattern: str, directory: str = "", max_results: int = 50) -> str:
+    """Find files by name pattern."""
+    try:
+        search_path = _resolve_vault_path(directory, is_dir=True) if directory else PATHS.vault_path
+    except ValueError as e:
+        return f"Error: {e}"
+    
+    if not search_path.exists():
+        return f"Error: Directory '{directory}' does not exist"
+    
+    pattern_lower = pattern.lower().replace('*', '')
+    matches = []
+    
+    for md_file in search_path.rglob('*.md'):
+        rel_path = md_file.relative_to(PATHS.vault_path)
+        if any(part in VAULT_EXCLUDE for part in rel_path.parts):
+            continue
+        
+        # Check if pattern matches filename
+        if pattern_lower in md_file.stem.lower():
+            size = _format_size(md_file.stat().st_size)
+            matches.append((str(rel_path), size))
+        
+        if len(matches) >= max_results:
+            break
+    
+    if not matches:
+        return f"No files matching '{pattern}'"
+    
+    result = [f"Found {len(matches)} files matching '{pattern}':"]
+    result.append("")
+    for path, size in sorted(matches):
+        result.append(f"  📄 {path} [{size}]")
+    
+    return '\n'.join(result)
+
+
+@tool(
+    description="""Find files by date range. Searches by filename date pattern (YYYY-MM-DD) or file modification time.
+    Great for finding meeting notes, daily notes, or recently modified files.""",
+    directory="Directory to search in",
+    start_date="Start date in YYYY-MM-DD format (inclusive)",
+    end_date="End date in YYYY-MM-DD format (inclusive)",
+    filename_pattern="Optional: additional text to match in filename (e.g., 'meeting', 'global')",
+    use_mtime="If True, search by file modification time instead of filename date. Default: False",
+    safe=True
+)
+def search_by_date(
+    directory: str,
+    start_date: str,
+    end_date: str,
+    filename_pattern: str = "",
+    use_mtime: bool = False
+) -> str:
+    """Find files within a date range."""
+    from datetime import datetime
+    
+    try:
+        search_path = _resolve_vault_path(directory, is_dir=True)
+    except ValueError as e:
+        return f"Error: {e}"
+    
+    if not search_path.exists():
+        return f"Error: Directory '{directory}' does not exist"
+    
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d")
+        end = datetime.strptime(end_date, "%Y-%m-%d")
+    except ValueError:
+        return "Error: Dates must be in YYYY-MM-DD format"
+    
+    date_pattern = re.compile(r'(\d{4}-\d{2}-\d{2})')
+    pattern_lower = filename_pattern.lower() if filename_pattern else ""
+    matches = []
+    
+    for md_file in search_path.rglob('*.md'):
+        rel_path = md_file.relative_to(PATHS.vault_path)
+        if any(part in VAULT_EXCLUDE for part in rel_path.parts):
+            continue
+        
+        # Check additional pattern filter
+        if pattern_lower and pattern_lower not in md_file.stem.lower():
+            continue
+        
+        file_date = None
+        
+        if use_mtime:
+            # Use file modification time
+            mtime = datetime.fromtimestamp(md_file.stat().st_mtime)
+            file_date = mtime.replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            # Extract date from filename
+            match = date_pattern.search(md_file.stem)
+            if match:
+                try:
+                    file_date = datetime.strptime(match.group(1), "%Y-%m-%d")
+                except ValueError:
+                    continue
+        
+        if file_date and start <= file_date <= end:
+            size = _format_size(md_file.stat().st_size)
+            date_str = file_date.strftime("%Y-%m-%d")
+            matches.append((date_str, str(rel_path), size))
+    
+    if not matches:
+        return f"No files found between {start_date} and {end_date}"
+    
+    # Sort by date
+    matches.sort(key=lambda x: x[0])
+    
+    result = [f"Found {len(matches)} files between {start_date} and {end_date}:"]
+    result.append("")
+    for date_str, path, size in matches:
+        result.append(f"  {date_str} | 📄 {path} [{size}]")
+    
+    return '\n'.join(result)
+
+
+@tool(
+    description="""Find all notes that link TO a specific note (backlinks).
+    Useful for discovering related context and notes that reference a topic.""",
+    filepath="Path to the note to find backlinks for",
+    max_results="Maximum backlinks to return. Default: 30",
+    safe=True
+)
+def get_backlinks(filepath: str, max_results: int = 30) -> str:
+    """Find notes that link to this note."""
+    try:
+        full_path = _resolve_vault_path(filepath)
+    except ValueError as e:
+        return f"Error: {e}"
+    
+    # Get the note name without extension for matching
+    note_name = full_path.stem
+    
+    # Pattern to match [[note_name]] or [[note_name|alias]]
+    link_pattern = re.compile(
+        r'\[\[' + re.escape(note_name) + r'(?:\|[^\]]+)?\]\]',
+        re.IGNORECASE
+    )
+    
+    backlinks = []
+    
+    for md_file in PATHS.vault_path.rglob('*.md'):
+        if md_file == full_path:
+            continue
+        
+        rel_path = md_file.relative_to(PATHS.vault_path)
+        if any(part in VAULT_EXCLUDE for part in rel_path.parts):
+            continue
+        
+        try:
+            with open(md_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except:
+            continue
+        
+        # Find all matches with context
+        lines = content.split('\n')
+        matches_in_file = []
+        for i, line in enumerate(lines, 1):
+            if link_pattern.search(line):
+                matches_in_file.append((i, line.strip()[:80]))
+        
+        if matches_in_file:
+            backlinks.append({
+                'path': str(rel_path),
+                'matches': matches_in_file[:2],  # First 2 occurrences
+                'count': len(matches_in_file)
+            })
+        
+        if len(backlinks) >= max_results:
+            break
+    
+    if not backlinks:
+        return f"No notes link to '{note_name}'"
+    
+    result = [f"Backlinks to '{note_name}' ({len(backlinks)} notes):"]
+    result.append("")
+    
+    for bl in backlinks:
+        result.append(f"📄 {bl['path']}")
+        for line_num, preview in bl['matches']:
+            result.append(f"   L{line_num}: {preview}")
+        if bl['count'] > 2:
+            result.append(f"   ({bl['count']} total references)")
+        result.append("")
+    
+    return '\n'.join(result)
+
+
+@tool(
+    description="""Get condensed outlines for multiple notes at once. Returns just headings (no links) to save space.
+    Efficient for understanding structure of several related notes.""",
+    filepaths="Comma-separated list of filepaths",
+    safe=True
+)
+def get_outlines(filepaths: str) -> str:
+    """Get outlines for multiple files."""
+    paths = [p.strip() for p in filepaths.split(',') if p.strip()]
+    
+    result = [f"Outlines for {len(paths)} notes:"]
+    result.append("=" * 60)
+    
+    for filepath in paths:
+        try:
+            full_path = _resolve_vault_path(filepath)
+        except ValueError as e:
+            result.append(f"\n📄 {filepath}: Error - {e}")
+            continue
+        
+        if not full_path.exists():
+            result.append(f"\n📄 {filepath}: Not found")
+            continue
+        
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        lines = content.split('\n')
+        headings = _extract_headings(content)
+        
+        result.append(f"\n📄 {filepath} ({len(lines)} lines)")
+        if headings:
+            for h in headings:
+                indent = "  " * (h['level'] - 1)
+                result.append(f"  {indent}{'#' * h['level']} {h['text']} (L{h['line']})")
+        else:
+            result.append("  (no headings)")
+    
+    return '\n'.join(result)
+
+
+@tool(
+    description="""Search within a single note for specific text. Returns matching lines with context.
+    Much faster than reading the whole note when looking for specific content.""",
+    filepath="Path to the note to search in",
+    query="Text to search for (case-insensitive)",
+    context_lines="Lines of context before/after each match. Default: 1",
+    safe=True
+)
+def search_in_note(filepath: str, query: str, context_lines: int = 1) -> str:
+    """Search for text within a specific note."""
+    try:
+        full_path = _resolve_vault_path(filepath)
+    except ValueError as e:
+        return f"Error: {e}"
+    
+    if not full_path.exists():
+        return f"Error: Note '{filepath}' does not exist"
+    
+    with open(full_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    
+    query_lower = query.lower()
+    matches = []
+    
+    for i, line in enumerate(lines):
+        if query_lower in line.lower():
+            matches.append(i)
+    
+    if not matches:
+        return f"No matches for '{query}' in {filepath}"
+    
+    result = [f"Found {len(matches)} matches for '{query}' in {filepath}:"]
+    result.append("-" * 60)
+    
+    shown_lines = set()
+    for match_idx in matches[:20]:  # Limit to first 20 matches
+        start = max(0, match_idx - context_lines)
+        end = min(len(lines), match_idx + context_lines + 1)
+        
+        if start in shown_lines:
+            continue
+        
+        for i in range(start, end):
+            if i in shown_lines:
+                continue
+            shown_lines.add(i)
+            
+            line_content = lines[i].rstrip('\n')
+            marker = ">>>" if i == match_idx else "   "
+            result.append(f"{marker} {i+1:5}|{line_content}")
+        
+        result.append("")
+    
+    if len(matches) > 20:
+        result.append(f"... and {len(matches) - 20} more matches")
+    
+    return '\n'.join(result)
+
+
 # Export the tools
 TOOLS = [
     list_vault,
@@ -434,4 +775,11 @@ TOOLS = [
     read_note_section,
     search_vault,
     get_note_links,
+    # Batch & efficiency tools
+    check_files_exist,
+    find_files,
+    search_by_date,
+    get_backlinks,
+    get_outlines,
+    search_in_note,
 ]
