@@ -205,10 +205,18 @@ Find my most recent email from John and summarize it.
 
 **Available toolsets:**
 - `system` - File operations, shell commands, Python execution
-- `obsidian` - Read notes and vault structure
+- `obsidian` - Navigate and read your vault (see below)
 - `gmail` - Read and send emails
 - `discord` - Send Discord messages
 - `subagents` - Create specialized sub-agents
+
+**Obsidian toolset** - Designed for navigating large vaults efficiently:
+- `list_vault(directory)` - Browse vault structure with file sizes
+- `get_note_outline(filepath)` - See headings, links, and metadata without reading full content
+- `read_note(filepath, offset, limit)` - Read notes with line numbers and pagination
+- `read_note_section(filepath, heading)` - Read a specific section by heading name
+- `search_vault(query, directory)` - Find notes by content or filename
+- `get_note_links(filepath)` - See all wikilinks in a note
 
 ### Parameters
 

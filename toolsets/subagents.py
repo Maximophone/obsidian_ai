@@ -5,7 +5,7 @@ import json
 import traceback
 from typing import List, Optional, Dict, Tuple
 from uuid import uuid4
-from .obsidian import read_obsidian_note
+from .obsidian import read_note
 
 # Store active conversations
 _conversations: Dict[str, AI] = {}
@@ -127,7 +127,7 @@ def spawn_subagent(
     if note_paths:
         for path in note_paths.split(','):
             path = path.strip()
-            content = read_obsidian_note(path)
+            content = read_note(path)
             if content.startswith("Error:"):
                 note_errors.append(f"Failed to read note '{path}': {content}")
             else:
