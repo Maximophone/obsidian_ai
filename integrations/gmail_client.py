@@ -401,6 +401,141 @@ class GmailClient:
 
         return self.list_emails(query=query_str, label_ids=label_ids, max_results=max_results)
 
+    def list_attachments(self, message_id):
+        """
+        List all attachments in an email without downloading them.
+        
+        :param message_id: The ID of the message to check for attachments
+        :return: A list of dicts with attachment info (id, filename, mimeType, size)
+        """
+        message = self.get_email(message_id)
+        attachments = []
+        
+        def find_attachments(parts):
+            """Recursively find attachments in message parts"""
+            for part in parts:
+                filename = part.get('filename', '')
+                if filename:
+                    attachment_info = {
+                        'id': part['body'].get('attachmentId'),
+                        'filename': filename,
+                        'mimeType': part.get('mimeType', 'application/octet-stream'),
+                        'size': part['body'].get('size', 0)
+                    }
+                    attachments.append(attachment_info)
+                # Check nested parts
+                if 'parts' in part:
+                    find_attachments(part['parts'])
+        
+        payload = message.get('payload', {})
+        if 'parts' in payload:
+            find_attachments(payload['parts'])
+        
+        return attachments
+
+    def download_attachment(self, message_id, attachment_id, filename, download_path):
+        """
+        Download a single attachment from an email.
+        
+        :param message_id: The ID of the message containing the attachment
+        :param attachment_id: The ID of the attachment to download
+        :param filename: The filename to save the attachment as
+        :param download_path: The directory path to save the attachment to
+        :return: The full path to the downloaded file
+        """
+        # Get the attachment data
+        attachment = self.service.users().messages().attachments().get(
+            userId='me',
+            messageId=message_id,
+            id=attachment_id
+        ).execute()
+        
+        # Decode the attachment data
+        data = attachment.get('data', '')
+        file_data = base64.urlsafe_b64decode(data)
+        
+        # Ensure download directory exists
+        os.makedirs(download_path, exist_ok=True)
+        
+        # Create the full file path
+        file_path = os.path.join(download_path, filename)
+        
+        # Handle filename conflicts by adding a number suffix
+        base_name, ext = os.path.splitext(filename)
+        counter = 1
+        while os.path.exists(file_path):
+            file_path = os.path.join(download_path, f"{base_name}_{counter}{ext}")
+            counter += 1
+        
+        # Write the file
+        with open(file_path, 'wb') as f:
+            f.write(file_data)
+        
+        logger.info(f"Downloaded attachment: {file_path}")
+        return file_path
+
+    def download_attachments(self, message_id, download_path, filenames):
+        """
+        Download specific attachments from an email by filename.
+        
+        :param message_id: The ID of the message to download attachments from
+        :param download_path: The directory path to save attachments to
+        :param filenames: List of filenames to download
+        :return: A list of dicts with download results (filename, path, size, success)
+        """
+        attachments = self.list_attachments(message_id)
+        results = []
+        
+        # Create a lookup dict for quick access
+        attachment_lookup = {att['filename']: att for att in attachments}
+        
+        for filename in filenames:
+            if filename not in attachment_lookup:
+                results.append({
+                    'filename': filename,
+                    'path': None,
+                    'size': 0,
+                    'success': False,
+                    'error': f'Attachment not found in email'
+                })
+                continue
+            
+            attachment = attachment_lookup[filename]
+            try:
+                if attachment['id']:
+                    file_path = self.download_attachment(
+                        message_id=message_id,
+                        attachment_id=attachment['id'],
+                        filename=attachment['filename'],
+                        download_path=download_path
+                    )
+                    results.append({
+                        'filename': attachment['filename'],
+                        'path': file_path,
+                        'size': attachment['size'],
+                        'success': True
+                    })
+                else:
+                    # Inline attachments without an attachmentId (embedded in body)
+                    results.append({
+                        'filename': attachment['filename'],
+                        'path': None,
+                        'size': attachment['size'],
+                        'success': False,
+                        'error': 'Inline attachment cannot be downloaded separately'
+                    })
+            except Exception as e:
+                logger.error(f"Failed to download attachment {attachment['filename']}: {e}")
+                results.append({
+                    'filename': attachment['filename'],
+                    'path': None,
+                    'size': attachment['size'],
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        return results
+
 
 if __name__ == '__main__':
     # Example usage

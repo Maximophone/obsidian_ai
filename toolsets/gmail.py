@@ -165,10 +165,73 @@ def list_recent_emails(
     )
     return json.dumps(messages)
 
+@tool(
+    description="List all attachments in an email without downloading them. This is useful to see what attachments "
+                "are available before deciding which ones to download. Returns information about each attachment "
+                "including filename, size, and MIME type.",
+    message_id="The unique ID of the email message to check for attachments (obtained from search results)",
+    safe=True
+)
+def list_email_attachments(message_id: str) -> str:
+    """Lists all attachments in a specific email"""
+    client, error = get_gmail_client()
+    if error:
+        return json.dumps({"error": error})
+    
+    attachments = client.list_attachments(message_id)
+    return json.dumps({
+        "message_id": message_id,
+        "attachment_count": len(attachments),
+        "attachments": attachments
+    })
+
+@tool(
+    description="Download specific attachments from an email to a specified folder. Use list_email_attachments first "
+                "to see available attachments and their filenames. Creates the folder if it doesn't exist. "
+                "If a file with the same name already exists, a number suffix will be added to avoid overwriting. "
+                "Returns details about each downloaded file including the final path and any errors encountered.",
+    message_id="The unique ID of the email message to download attachments from (obtained from search results)",
+    download_path="The folder path where attachments should be saved (e.g., '/Users/me/Downloads/email_attachments')",
+    filenames="JSON array of attachment filenames to download (e.g., '[\"report.pdf\", \"data.xlsx\"]'). Use list_email_attachments to see available filenames.",
+    safe=False
+)
+def download_email_attachments(message_id: str, download_path: str, filenames: str) -> str:
+    """Downloads specific attachments from an email to a folder"""
+    client, error = get_gmail_client()
+    if error:
+        return json.dumps({"error": error})
+    
+    # Parse the filenames list
+    try:
+        filenames_list = json.loads(filenames)
+        if not isinstance(filenames_list, list):
+            return json.dumps({"error": "filenames must be a JSON array of strings"})
+    except json.JSONDecodeError as e:
+        return json.dumps({"error": f"Invalid JSON for filenames: {str(e)}"})
+    
+    # Expand user home directory if path starts with ~
+    download_path = os.path.expanduser(download_path)
+    
+    results = client.download_attachments(message_id, download_path, filenames_list)
+    
+    successful = sum(1 for r in results if r['success'])
+    failed = len(results) - successful
+    
+    return json.dumps({
+        "message_id": message_id,
+        "download_path": download_path,
+        "requested_files": filenames_list,
+        "successful_downloads": successful,
+        "failed_downloads": failed,
+        "files": results
+    })
+
 # Export the tools
 TOOLS = [
     send_email,
     search_emails,
     get_email_content,
-    list_recent_emails
+    list_recent_emails,
+    list_email_attachments,
+    download_email_attachments
 ]
