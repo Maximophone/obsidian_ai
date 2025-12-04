@@ -98,6 +98,7 @@ def confirm_tool_execution(tool: Tool, arguments: Dict[str, Any]) -> Tuple[bool,
     dialog.setWindowTitle("Confirm Tool Execution")
     dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowStaysOnTopHint)  # Make window stay on top
     dialog.setMinimumWidth(650)  # Set minimum width for the entire dialog
+    dialog.setAttribute(Qt.WA_DeleteOnClose)  # Ensure dialog is deleted when closed
     
     # Create layout
     layout = QVBoxLayout()
@@ -151,5 +152,16 @@ def confirm_tool_execution(tool: Tool, arguments: Dict[str, Any]) -> Tuple[bool,
     dialog.raise_()  # Bring window to front
     dialog.activateWindow()  # Activate the window
     result = dialog.exec_()
-    return (result == QDialog.Accepted, message_text.toPlainText().strip())
+    
+    # Capture user message before dialog is destroyed
+    user_message = message_text.toPlainText().strip()
+    confirmed = result == QDialog.Accepted
+    
+    # Explicitly close and clean up the dialog
+    dialog.close()
+    
+    # Process any pending Qt events to ensure clean UI state
+    app.processEvents()
+    
+    return (confirmed, user_message)
 
