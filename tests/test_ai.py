@@ -13,8 +13,9 @@ from ai_core import (
 )
 from ai_core.types import Message, MessageContent
 
-IMG1_PATH = "G:\\My Drive\\Obsidian\\Images\\cube.png"
-IMG2_PATH = "G:\\My Drive\\Obsidian\\Images\\cube.png"
+# Test image paths - set via environment variable or use a test fixture
+IMG1_PATH = os.environ.get("TEST_IMAGE_PATH", os.path.join(tempfile.gettempdir(), "test_cube.png"))
+IMG2_PATH = os.environ.get("TEST_IMAGE_PATH", os.path.join(tempfile.gettempdir(), "test_cube.png"))
 
 class TestAIFunctions(unittest.TestCase):
 

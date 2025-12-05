@@ -21,4 +21,7 @@ model_name: text-embedding-3-small
 overlap: 50
 recursive: true
 update_mode: update_if_newer
-vault_path: G:\My Drive\Obsidian
+# Set this to your Obsidian vault path
+# vault_path: C:\Users\YourName\Documents\ObsidianVault  # Windows example
+# vault_path: /Users/YourName/Documents/ObsidianVault   # macOS example
+vault_path: ${OBSIDIAN_VAULT_PATH}
