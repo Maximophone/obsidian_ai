@@ -16,3 +16,4 @@ fi
 source .venv/bin/activate
 python obsidian_ai.py "$@"
 
+

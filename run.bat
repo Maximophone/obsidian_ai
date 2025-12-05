@@ -15,3 +15,4 @@ REM Activate and run
 call .venv\Scripts\activate.bat
 python obsidian_ai.py %*
 
+

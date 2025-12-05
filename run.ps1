@@ -15,3 +15,4 @@ if (-not (Test-Path ".venv")) {
 & .\.venv\Scripts\Activate.ps1
 python obsidian_ai.py $args
 
+
