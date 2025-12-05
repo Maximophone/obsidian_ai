@@ -88,17 +88,21 @@ def confirm_tool_execution(tool: Tool, arguments: Dict[str, Any]) -> Tuple[bool,
     Returns:
         Tuple[bool, str]: (True if user confirms, False otherwise, Optional message to AI)
     """
+    import time
+    
     # Get the existing QApplication instance
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
+    
+    # Store result in a mutable container to capture from signal handler
+    result_container = {'done': False, 'confirmed': False, 'user_message': ''}
     
     # Create custom dialog
     dialog = QDialog()
     dialog.setWindowTitle("Confirm Tool Execution")
     dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowStaysOnTopHint)  # Make window stay on top
     dialog.setMinimumWidth(650)  # Set minimum width for the entire dialog
-    dialog.setAttribute(Qt.WA_DeleteOnClose)  # Ensure dialog is deleted when closed
     
     # Create layout
     layout = QVBoxLayout()
@@ -145,23 +149,45 @@ def confirm_tool_execution(tool: Tool, arguments: Dict[str, Any]) -> Tuple[bool,
     
     dialog.setLayout(layout)
     
+    # Handler for when dialog finishes - capture result
+    def on_dialog_finished(result_code):
+        result_container['confirmed'] = (result_code == QDialog.Accepted)
+        result_container['user_message'] = message_text.toPlainText().strip()
+        result_container['done'] = True
+    
+    # Connect the finished signal to our handler
+    dialog.finished.connect(on_dialog_finished)
+    
     # Play the system alert sound
     QApplication.beep()
     
-    # Show dialog and get result
+    # Show the dialog non-blocking
+    dialog.show()
     dialog.raise_()  # Bring window to front
     dialog.activateWindow()  # Activate the window
-    result = dialog.exec_()
     
-    # Capture user message before dialog is destroyed
-    user_message = message_text.toPlainText().strip()
-    confirmed = result == QDialog.Accepted
+    # Poll for dialog completion while processing events
+    # This avoids nested event loops which cause freezing on macOS
+    while not result_container['done']:
+        app.processEvents()
+        time.sleep(0.01)  # Small sleep to avoid busy-waiting
     
-    # Explicitly close and clean up the dialog
-    dialog.close()
+    # Aggressive cleanup - ensure dialog is fully destroyed before returning
+    # This is important because after we return, Qt events may not be processed
+    # for a long time (during AI API calls, tool execution, etc.)
+    dialog.hide()  # Hide immediately
+    dialog.close()  # Send close event
+    app.processEvents()  # Process the hide/close
     
-    # Process any pending Qt events to ensure clean UI state
-    app.processEvents()
+    dialog.destroy()  # Destroy the native window handle
+    app.processEvents()  # Process the destruction
     
-    return (confirmed, user_message)
+    dialog.deleteLater()  # Schedule Python-side cleanup
+    
+    # Process events repeatedly to ensure all cleanup is done
+    for _ in range(10):
+        app.processEvents()
+        time.sleep(0.01)
+    
+    return (result_container['confirmed'], result_container['user_message'])
 
