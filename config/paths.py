@@ -2,6 +2,11 @@ import os
 import sys
 from pathlib import Path
 from dataclasses import dataclass, field
+from dotenv import load_dotenv
+
+# Load .env file BEFORE resolving paths
+# This ensures OBSIDIAN_VAULT_PATH is available from .env
+load_dotenv()
 
 
 def get_default_google_drive_path() -> Path | None:
