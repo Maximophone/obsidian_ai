@@ -282,6 +282,101 @@ class GmailClient:
         ).execute()
         return sent_message
 
+    def reply_to_email(self, message_id, to, body, cc=None, from_name=None, from_email=None):
+        """
+        Reply to an existing email, keeping it in the same thread.
+        
+        :param message_id: The ID of the message to reply to
+        :param to: List of recipient email addresses or single address (must be explicitly specified)
+        :param body: The HTML content of the reply
+        :param cc: List of CC recipient email addresses or single address (optional)
+        :param from_name: Display name for the sender (optional)
+        :param from_email: Sender email address (optional, must have permission)
+        :return: API response dict containing message ID, etc.
+        """
+        # Get the original message to extract thread info and headers
+        original_message = self.get_email(message_id)
+        thread_id = original_message.get('threadId')
+        
+        # Extract headers from original message
+        headers = original_message.get('payload', {}).get('headers', [])
+        original_subject = None
+        original_message_id_header = None
+        original_references = None
+        
+        for header in headers:
+            name = header['name'].lower()
+            value = header['value']
+            if name == 'subject':
+                original_subject = value
+            elif name == 'message-id':
+                original_message_id_header = value
+            elif name == 'references':
+                original_references = value
+        
+        # Build reply subject (add Re: if not already present)
+        if original_subject:
+            if not original_subject.lower().startswith('re:'):
+                reply_subject = f"Re: {original_subject}"
+            else:
+                reply_subject = original_subject
+        else:
+            reply_subject = "Re: (no subject)"
+        
+        # Create the reply message
+        message = MIMEText(body, 'html')
+        
+        # Set recipients (explicitly provided by caller)
+        if isinstance(to, list):
+            message['to'] = ', '.join(to)
+        else:
+            message['to'] = to
+        
+        # Handle CC recipients if provided
+        if cc:
+            if isinstance(cc, list):
+                message['cc'] = ', '.join(cc)
+            else:
+                message['cc'] = cc
+        
+        # Set the subject
+        message['subject'] = reply_subject
+        
+        # Set In-Reply-To and References headers to maintain thread
+        if original_message_id_header:
+            message['In-Reply-To'] = original_message_id_header
+            # Build References header (append to existing or start new)
+            if original_references:
+                message['References'] = f"{original_references} {original_message_id_header}"
+            else:
+                message['References'] = original_message_id_header
+        
+        # Use provided from_email if available, otherwise get user's email
+        if from_email:
+            sender_email = from_email
+        else:
+            sender_info = self.service.users().getProfile(userId='me').execute()
+            sender_email = sender_info['emailAddress']
+        
+        # Set the From header with display name if provided
+        if from_name:
+            message['from'] = f"{from_name} <{sender_email}>"
+        else:
+            message['from'] = sender_email
+        
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        send_body = {
+            'raw': raw_message,
+            'threadId': thread_id  # This keeps the reply in the same thread
+        }
+        
+        sent_message = self.service.users().messages().send(
+            userId='me',
+            body=send_body
+        ).execute()
+        
+        return sent_message
+
     def list_emails(self, query='', label_ids=None, max_results=10):
         """
         List emails in your mailbox.

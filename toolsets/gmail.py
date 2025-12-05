@@ -186,6 +186,50 @@ def list_email_attachments(message_id: str) -> str:
     })
 
 @tool(
+    description="Reply to an existing email, keeping the conversation in the same thread. This tool allows you to "
+                "respond to an email while maintaining the email thread structure. The reply will automatically "
+                "include proper threading headers (In-Reply-To, References) and will appear in the same conversation "
+                "thread in Gmail. You MUST explicitly specify the recipient(s) in the 'to' parameter - check the "
+                "original email's 'From' field to find the sender's address to reply to.",
+    message_id="The unique ID of the email message to reply to (obtained from search results or get_email_content)",
+    to="The recipient's email address(es) to send the reply to, comma-separated for multiple recipients. "
+       "This must be explicitly specified - typically the original sender's email from the 'From' field.",
+    body="The HTML content of the reply message (use <br> for line breaks)",
+    cc="Optional CC recipient(s), comma-separated for multiple CC addresses",
+    from_name="Optional display name for the sender",
+    from_email="Optional sender email address (must have permission to send as this address)",
+    safe=False
+)
+def reply_to_email(
+    message_id: str,
+    to: str,
+    body: str,
+    cc: str = None,
+    from_name: str = None,
+    from_email: str = None
+) -> str:
+    """Replies to an existing email in the same thread"""
+    client, error = get_gmail_client()
+    if error:
+        return json.dumps({"error": error})
+    
+    # Split recipients by comma and strip whitespace
+    to_list = [email.strip() for email in to.split(',') if email.strip()]
+    
+    # Split CC by comma and strip whitespace if provided
+    cc_list = [email.strip() for email in cc.split(',')] if cc else None
+    
+    result = client.reply_to_email(
+        message_id=message_id,
+        to=to_list,
+        body=body,
+        cc=cc_list,
+        from_name=from_name,
+        from_email=from_email
+    )
+    return json.dumps(result)
+
+@tool(
     description="Download specific attachments from an email to a specified folder. Use list_email_attachments first "
                 "to see available attachments and their filenames. Creates the folder if it doesn't exist. "
                 "If a file with the same name already exists, a number suffix will be added to avoid overwriting. "
@@ -229,6 +273,7 @@ def download_email_attachments(message_id: str, download_path: str, filenames: s
 # Export the tools
 TOOLS = [
     send_email,
+    reply_to_email,
     search_emails,
     get_email_content,
     list_recent_emails,
