@@ -108,6 +108,43 @@ GDRIVE_API_KEY=your-gdrive-key
 
 > **Note:** If you don't set `OBSIDIAN_VAULT_PATH`, it will try to auto-detect a vault in Google Drive (`My Drive/Obsidian`).
 
+### Getting API Keys for Integrations
+
+#### Discord Bot Token
+
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click **"New Application"** and give it a name
+3. In the left sidebar, click **"Bot"**
+4. Click **"Add Bot"** and confirm
+5. Under the **Token** section, click **"Reset Token"** then **"Copy"** — this is your `DISCORD_BOT_TOKEN`
+6. Scroll down and enable these **Privileged Gateway Intents**:
+   - Message Content Intent
+   - Server Members Intent (if needed)
+7. To invite your bot to a server:
+   - Go to **"OAuth2" → "URL Generator"**
+   - Select scopes: `bot`
+   - Select permissions: `Send Messages`, `Read Message History`, `View Channels`
+   - Copy the generated URL and open it in your browser to invite the bot
+
+#### Google Drive API Key
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project (or select an existing one)
+3. Enable the **Google Drive API**:
+   - Go to **"APIs & Services" → "Library"**
+   - Search for "Google Drive API" and click **Enable**
+4. Create credentials:
+   - Go to **"APIs & Services" → "Credentials"**
+   - Click **"Create Credentials" → "API Key"**
+   - Copy the key — this is your `GDRIVE_API_KEY`
+5. (Recommended) Restrict the API key:
+   - Click on the newly created key
+   - Under **"API restrictions"**, select **"Restrict key"**
+   - Choose **"Google Drive API"** from the list
+   - Save
+
+> **Note:** For accessing private files, you'll need OAuth 2.0 credentials instead of an API key. See [Google's OAuth setup guide](https://developers.google.com/drive/api/quickstart/python) for details.
+
 ## Usage
 
 ### Basic AI Queries
